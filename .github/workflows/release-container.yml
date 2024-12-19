@@ -1,0 +1,74 @@
+---
+name: Release Container
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions: {}
+
+jobs:
+  release-container:
+    name: Release Container
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Prepare Environment
+        id: prepare_environment
+        run: |
+          ecrRepositoryName=$(echo "${{ github.repository }}" | cut -d '/' -f 2 | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')
+          export ecrRepositoryName
+          echo "ECR_REPOSITORY_NAME=${ecrRepositoryName}" >>"${GITHUB_ENV}"
+
+      - name: Install cosign
+        id: install_cosign
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+      
+      - name: Configure AWS Credentials
+        id: configure_aws_credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          aws-region: eu-west-2
+          role-to-assume: arn:aws:iam::509399598587:role/ecr-access
+
+      - name: Log in to Amazon ECR
+        id: ecr_login
+        uses: uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2.0.1
+
+      - name: Create ECR Repository
+        id: create_ecr_repository
+        run: |
+          if ! aws ecr describe-repositories --repository-names "${ECR_REPOSITORY_NAME}" > /dev/null 2>&1; then
+            aws ecr create-repository --repository-name "${ECR_REPOSITORY_NAME}"
+          fi
+
+          aws ecr set-repository-policy --repository-name "${ECR_REPOSITORY_NAME}" --policy-text file://contrib/ecr-lifecycle-policy.json
+
+      - name: Build and Push
+        id: build_and_push
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
+        with:
+          push: true
+          tags: ${{ steps.ecr_login.outputs.registry }}/${{ env.ECR_REPOSITORY_NAME }}:${{ github.ref_name }}
+
+      - name: Sign
+        id: sign
+        shell: bash
+        run: |
+          cosign sign --yes ${{ steps.ecr_login.outputs.registry }}/${{ env.ECR_REPOSITORY_NAME }}@${{ steps.build_and_push.outputs.digest }}
+
+      - name: Verify Signature
+        id: cosign_verify
+        shell: bash
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+            --certificate-identity=https://github.com/${{ github.workflow_ref }} \
+            ${{ steps.ecr_login.outputs.registry }}/${{ env.ECR_REPOSITORY_NAME }}@${{ steps.build_and_push.outputs.digest }}
