@@ -23,7 +23,7 @@ jobs:
       - name: Prepare Environment
         id: prepare_environment
         run: |
-          ecrRepositoryName=$(echo "${{ github.repository }}" | cut -d '/' -f 2 | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')
+          ecrRepositoryName=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')
           export ecrRepositoryName
           echo "ECR_REPOSITORY_NAME=${ecrRepositoryName}" >>"${GITHUB_ENV}"
 
