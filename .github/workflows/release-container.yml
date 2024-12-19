@@ -13,7 +13,7 @@ jobs:
     name: Release Container
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       id-token: write
     steps:
       - name: Checkout
@@ -46,10 +46,16 @@ jobs:
         id: create_ecr_repository
         run: |
           if ! aws ecr describe-repositories --repository-names "${ECR_REPOSITORY_NAME}" > /dev/null 2>&1; then
-            aws ecr create-repository --repository-name "${ECR_REPOSITORY_NAME}"
+            aws ecr create-repository \
+              --repository-name "${ECR_REPOSITORY_NAME}" \
+              --image-tag-mutability "IMMUTABLE" \
+              --image-scanning-configuration "scanOnPush=true" \
+              --encryption-configuration "encryptionType=KMS,kmsKey=alias/ecr/default"
           fi
 
-          aws ecr set-repository-policy --repository-name "${ECR_REPOSITORY_NAME}" --policy-text file://contrib/ecr-lifecycle-policy.json
+          aws ecr set-repository-policy \
+            --repository-name "${ECR_REPOSITORY_NAME}" \
+            --policy-text file://contrib/ecr-lifecycle-policy.json
 
       - name: Build and Push
         id: build_and_push
