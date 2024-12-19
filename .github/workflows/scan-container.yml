@@ -25,7 +25,7 @@ jobs:
         with:
           context: .
           push: false
-          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          tags: ${{ github.repository }}:${{ github.sha }}
 
       - name: Generate .trivyignore
         id: generate_trivyignore
@@ -45,6 +45,6 @@ jobs:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1
         with:
-          image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          image-ref: ${{ github.repository }}:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
