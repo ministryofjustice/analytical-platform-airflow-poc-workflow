@@ -27,6 +27,17 @@ jobs:
           push: false
           tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
 
+      - name: Generate .trivyignore
+        id: generate_trivyignore
+        run: |
+          curl -sSL https://raw.githubusercontent.com/ministryofjustice/analytical-platform-airflow-python-base/refs/heads/main/.trivyignore --output analytical-platform-airflow-python-base-trivyignore
+
+          if [[ ! -f .trivyignore ]]; then
+            mv analytical-platform-airflow-python-base-trivyignore .trivyignore
+          else
+            cat analytical-platform-airflow-python-base-trivyignore >> .trivyignore
+          fi
+
       - name: Scan
         id: scan
         uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
